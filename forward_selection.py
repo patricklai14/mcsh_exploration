@@ -24,7 +24,7 @@ groups_by_order = {0: {"groups": [1], "sigmas": sigmas},
 
 
 #setup baseline MCSH params
-base_order = 3 #number of orders to include by default
+base_order = 0 #number of orders to include by default
 base_group_params = {str(i): groups_by_order[i] for i in range(base_order + 1)}
 
 #get baseline performance
@@ -47,7 +47,7 @@ groups_added = [-1]
 
 #groups to be removed from consideration, organized as {order: set(groups)}
 removed_groups = {}
-remove_improvement_pct = -0.5
+remove_improvement_pct = -1.0
 
 print("Forward selection params: stop_improvement_pct={}, max_features={}, remove_improvement_pct={}".format(
         stop_improvement_pct, max_features, remove_improvement_pct))

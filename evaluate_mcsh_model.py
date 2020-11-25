@@ -1,4 +1,3 @@
-import numpy as np
 from ase import Atoms
 from ase.calculators.emt import EMT
 from ase.io.trajectory import Trajectory
@@ -7,6 +6,7 @@ from ase.io import read
 from amptorch.trainer import AtomsTrainer
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 import os
@@ -18,22 +18,62 @@ dir_prefix = "D:\\Work\\sandbox\\vip"
 def evaluate_model(mcsh_group_params, cutoff):
     np.random.seed(3)
 
+    #set up data
+    # mcsh_params = {   "MCSHs": mcsh_group_params,
+    #                   "atom_gaussians": {
+    #                     "H": os.path.join(dir_prefix, "config\\MCSH_potential\\H_totaldensity_4.g"),
+    #                     "O": os.path.join(dir_prefix, "config\\MCSH_potential\\O_totaldensity_7.g"),
+    #                     "Fe": os.path.join(dir_prefix, "config\\MCSH_potential\\Pt_totaldensity_5.g")},
+    #                   "cutoff": cutoff
+    #               }
+
+
+
+    # traj = Trajectory(os.path.join(dir_prefix, "data\\medium\\md.traj"))
+    # elements = ["H","O","Fe"]
+
+    # images = []
+    # for i in range(len(traj)):
+    #     images.append(traj[i])
+
+    distances = np.linspace(2, 5, 100)
+    images = []
+    for i in range(len(distances)):
+        l = distances[i]
+        # image = Atoms(
+        #     "CuCO",
+        #     [
+        #         (-l * np.sin(0.65), l * np.cos(0.65), np.random.uniform(low=-5.0, high=5.0)),
+        #         (np.random.uniform(low=-5.0, high=5.0), np.random.uniform(low=-5.0, high=5.0), np.random.uniform(low=-5.0, high=5.0)),
+        #         (l * np.sin(0.65), l * np.cos(0.65), np.random.uniform(low=-5.0, high=5.0))
+        #     ],
+        # )
+
+        image = Atoms(
+            "CuCO",
+            [
+                (-l * np.sin(0.65), l * np.cos(0.65), np.random.uniform(low=-4.0, high=4.0)),
+                (0, 0, 0),
+                (l * np.sin(0.65), l * np.cos(0.65), np.random.uniform(low=-4.0, high=4.0))
+            ],
+        )
+
+        image.set_cell([10, 10, 10])
+        image.wrap(pbc=True)
+        image.set_calculator(EMT())
+        images.append(image)
+
+    elements = ["Cu","C","O"]
     mcsh_params = {   "MCSHs": mcsh_group_params,
                       "atom_gaussians": {
-                        "H": os.path.join(dir_prefix, "config\\MCSH_potential\\H_totaldensity_4.g"),
+                        "C": os.path.join(dir_prefix, "config\\MCSH_potential\\C_coredensity_5.g"),
                         "O": os.path.join(dir_prefix, "config\\MCSH_potential\\O_totaldensity_7.g"),
-                        "Fe": os.path.join(dir_prefix, "config\\MCSH_potential\\Pt_totaldensity_5.g")},
+                        "Cu": os.path.join(dir_prefix, "config\\MCSH_potential\\Cu_totaldensity_5.g")},
                       "cutoff": cutoff
                   }
 
 
 
-    traj = Trajectory(os.path.join(dir_prefix, "data\\medium\\md.traj"))
-    elements = ["H","O","Fe"]
-
-    images = []
-    for i in range(len(traj)):
-        images.append(traj[i])
 
     #setup for k-fold cross validation
     num_folds = 5
@@ -59,7 +99,7 @@ def evaluate_model(mcsh_group_params, cutoff):
         fold_indices.append((start_index, end_index))
 
     #number of times to run CV
-    num_cv_iters = 3
+    num_cv_iters = 4
 
     mse_test_list = []
     mse_train_list = []
@@ -82,14 +122,14 @@ def evaluate_model(mcsh_group_params, cutoff):
             true_energies_test = true_energies[start_index:end_index]
 
             config = {
-                "model": {"get_forces": False, "num_layers": 5, "num_nodes": 30},
+                "model": {"get_forces": False, "num_layers": 3, "num_nodes": 20},
                 "optim": {
                     "device": "cpu",
                     #"force_coefficient": 0.04,
                 "force_coefficient": 0.0,
-                    "lr": 1e-2,
+                    "lr": 1e-3,
                     "batch_size": 32,
-                    "epochs": 500,
+                    "epochs": 1000,
                 },
                 "dataset": {
                     "raw_data": images_train,
