@@ -16,7 +16,7 @@ dir_prefix = "D:\\Work\\sandbox\\vip"
 
 #run k-fold cross validation with given mcsh params and return (train_mse, test_mse)
 def evaluate_model(mcsh_group_params, cutoff):
-    np.random.seed(3)
+    np.random.seed(2)
 
     #set up data
     # mcsh_params = {   "MCSHs": mcsh_group_params,
