@@ -1,8 +1,3 @@
-from ase import Atoms
-from ase.calculators.emt import EMT
-from ase.io.trajectory import Trajectory
-from ase.io import read
-
 from amptorch.trainer import AtomsTrainer
 
 import matplotlib.pyplot as plt
@@ -12,68 +7,19 @@ import pandas as pd
 import os
 import pdb
 
-dir_prefix = "D:\\Work\\sandbox\\vip"
+#structure for holding dataset and parameters
+class dataset:
+    def __init__(self, images, elements, atom_gaussians=None):
+        self.images = images
+        self.elements = elements
+        self.atom_gaussians = atom_gaussians
 
 #run k-fold cross validation with given mcsh params and return (train_mse, test_mse)
-def evaluate_model(mcsh_group_params, cutoff):
-    np.random.seed(2)
-
-    #set up data
-    # mcsh_params = {   "MCSHs": mcsh_group_params,
-    #                   "atom_gaussians": {
-    #                     "H": os.path.join(dir_prefix, "config\\MCSH_potential\\H_totaldensity_4.g"),
-    #                     "O": os.path.join(dir_prefix, "config\\MCSH_potential\\O_totaldensity_7.g"),
-    #                     "Fe": os.path.join(dir_prefix, "config\\MCSH_potential\\Pt_totaldensity_5.g")},
-    #                   "cutoff": cutoff
-    #               }
-
-
-
-    # traj = Trajectory(os.path.join(dir_prefix, "data\\medium\\md.traj"))
-    # elements = ["H","O","Fe"]
-
-    # images = []
-    # for i in range(len(traj)):
-    #     images.append(traj[i])
-
-    distances = np.linspace(2, 5, 100)
-    images = []
-    for i in range(len(distances)):
-        l = distances[i]
-        # image = Atoms(
-        #     "CuCO",
-        #     [
-        #         (-l * np.sin(0.65), l * np.cos(0.65), np.random.uniform(low=-5.0, high=5.0)),
-        #         (np.random.uniform(low=-5.0, high=5.0), np.random.uniform(low=-5.0, high=5.0), np.random.uniform(low=-5.0, high=5.0)),
-        #         (l * np.sin(0.65), l * np.cos(0.65), np.random.uniform(low=-5.0, high=5.0))
-        #     ],
-        # )
-
-        image = Atoms(
-            "CuCO",
-            [
-                (-l * np.sin(0.65), l * np.cos(0.65), np.random.uniform(low=-4.0, high=4.0)),
-                (0, 0, 0),
-                (l * np.sin(0.65), l * np.cos(0.65), np.random.uniform(low=-4.0, high=4.0))
-            ],
-        )
-
-        image.set_cell([10, 10, 10])
-        image.wrap(pbc=True)
-        image.set_calculator(EMT())
-        images.append(image)
-
-    elements = ["Cu","C","O"]
+def evaluate_model(mcsh_group_params, cutoff, data):
     mcsh_params = {   "MCSHs": mcsh_group_params,
-                      "atom_gaussians": {
-                        "C": os.path.join(dir_prefix, "config\\MCSH_potential\\C_coredensity_5.g"),
-                        "O": os.path.join(dir_prefix, "config\\MCSH_potential\\O_totaldensity_7.g"),
-                        "Cu": os.path.join(dir_prefix, "config\\MCSH_potential\\Cu_totaldensity_5.g")},
+                      "atom_gaussians": data.atom_gaussians,
                       "cutoff": cutoff
                   }
-
-
-
 
     #setup for k-fold cross validation
     num_folds = 5
@@ -82,8 +28,8 @@ def evaluate_model(mcsh_group_params, cutoff):
     #The first n_samples % n_splits folds have size n_samples // n_splits + 1, 
     #other folds have size n_samples // n_splits, where n_samples is the number of samples.
     fold_indices = []
-    num_larger_sets = len(images) % num_folds
-    smaller_set_size = len(images) // num_folds
+    num_larger_sets = len(data.images) % num_folds
+    smaller_set_size = len(data.images) // num_folds
     larger_set_size = smaller_set_size + 1
     for i in range(num_folds):
         if i == 0:
@@ -108,15 +54,15 @@ def evaluate_model(mcsh_group_params, cutoff):
         seed = np.random.randint(1, 100000)
         np.random.seed(seed)
 
-        np.random.shuffle(images)
+        np.random.shuffle(data.images)
         true_energies = []
-        for img in images:
+        for img in data.images:
             true_energies.append(img.get_potential_energy())
 
         #run k-fold cross validation
         for start_index, end_index in fold_indices:
-            images_train = images[:start_index] + images[end_index:]
-            images_test = images[start_index:end_index]
+            images_train = data.images[:start_index] + data.images[end_index:]
+            images_test = data.images[start_index:end_index]
 
             true_energies_train = true_energies[:start_index] + true_energies[end_index:]
             true_energies_test = true_energies[start_index:end_index]
@@ -134,7 +80,7 @@ def evaluate_model(mcsh_group_params, cutoff):
                 "dataset": {
                     "raw_data": images_train,
                     "val_split": 0,
-                    "elements": elements,
+                    "elements": data.elements,
                     "fp_scheme": "mcsh",
                     "fp_params": mcsh_params,
                     "save_fps": False,

@@ -7,7 +7,7 @@ import pdb
 
 import evaluate_mcsh_model
 
-def forward_selection(output_dir):
+def forward_selection(output_dir, data):
     cutoff = 8
     sigmas = np.logspace(np.log10(0.05), np.log10(1.0), num=5)
     groups_by_order = {0: {"groups": [1], "sigmas": sigmas},
@@ -28,7 +28,7 @@ def forward_selection(output_dir):
 
     #get baseline performance
     print("Testing base params: {}".format(base_params))
-    base_train_mse, base_test_mse = evaluate_mcsh_model.evaluate_model(base_params, cutoff)
+    base_train_mse, base_test_mse = evaluate_mcsh_model.evaluate_model(base_params, cutoff, data)
     print("Base test MSE: {}".format(base_test_mse))
 
     stop_improvement_pct = 0.05
@@ -71,7 +71,7 @@ def forward_selection(output_dir):
 
             print("Testing order {}".format(order))
             print("MCSH group params: {}".format(group_params_candidate))
-            train_mse, test_mse = evaluate_mcsh_model.evaluate_model(group_params_candidate, cutoff)
+            train_mse, test_mse = evaluate_mcsh_model.evaluate_model(group_params_candidate, cutoff, model)
 
             if test_mse < curr_min_test_mse:
                 curr_min_test_mse = test_mse
@@ -117,7 +117,7 @@ def forward_selection(output_dir):
             break
 
 
-def backward_elimination(output_dir):
+def backward_elimination(output_dir, data):
     cutoff = 8
     sigmas = np.logspace(np.log10(0.05), np.log10(1.0), num=5)
     groups_by_order = {0: {"groups": [1], "sigmas": sigmas},
@@ -138,10 +138,10 @@ def backward_elimination(output_dir):
 
     #get baseline performance
     print("Testing base params: {}".format(base_params))
-    base_train_mse, base_test_mse = evaluate_mcsh_model.evaluate_model(base_params, cutoff)
+    base_train_mse, base_test_mse = evaluate_mcsh_model.evaluate_model(base_params, cutoff, data)
     print("Base test MSE: {}".format(base_test_mse))
 
-    stop_change_pct = 0.05
+    stop_change_pct = 0.1
     prev_test_mse = base_test_mse
     prev_group_params = copy.deepcopy(base_params)
 
@@ -169,7 +169,7 @@ def backward_elimination(output_dir):
 
             print("Testing removing order {}".format(order))
             print("MCSH group params: {}".format(group_params_candidate))
-            train_mse, test_mse = evaluate_mcsh_model.evaluate_model(group_params_candidate, cutoff)
+            train_mse, test_mse = evaluate_mcsh_model.evaluate_model(group_params_candidate, cutoff, data)
 
             if test_mse < curr_min_test_mse:
                 curr_min_test_mse = test_mse
