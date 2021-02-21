@@ -15,14 +15,14 @@ class dataset:
         self.atom_gaussians = atom_gaussians
 
 #run k-fold cross validation with given mcsh params and return (train_mse, test_mse)
-def evaluate_model(mcsh_group_params, cutoff, data):
+def evaluate_model(mcsh_group_params, cutoff, data, run_dir='./'):
     mcsh_params = {   "MCSHs": mcsh_group_params,
                       "atom_gaussians": data.atom_gaussians,
                       "cutoff": cutoff
                   }
 
     #setup for k-fold cross validation
-    num_folds = 5
+    num_folds = 3
 
     #Separate data into k folds
     #The first n_samples % n_splits folds have size n_samples // n_splits + 1, 
@@ -45,7 +45,7 @@ def evaluate_model(mcsh_group_params, cutoff, data):
         fold_indices.append((start_index, end_index))
 
     #number of times to run CV
-    num_cv_iters = 4
+    num_cv_iters = 1 
 
     mse_test_list = []
     mse_train_list = []
@@ -87,7 +87,7 @@ def evaluate_model(mcsh_group_params, cutoff, data):
                 },
                 "cmd": {
                     "debug": False,
-                    "run_dir": "./",
+                    "run_dir": run_dir,
                     "seed": seed,
                     "identifier": "test",
                     "verbose": False,
