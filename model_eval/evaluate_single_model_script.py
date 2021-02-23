@@ -32,7 +32,7 @@ def main():
     dataset = pickle.load(open(data_file, "rb"))
 
     #load model config
-    config_file = args_dict["config_file"]
+    config_file = args_dict["config"]
     config = json.load(open(config_file, "r"))
 
     cutoff = config["cutoff"]
@@ -49,8 +49,8 @@ def main():
     print("Test MSE: {}".format(test_mse))
 
     #write result to file
-    output_path = workspace_path / constants.OUTPUT_DIR / "output_{}.json".format(config["name"])
-    json.dump({constants.TRAIN_MSE: train_mse, constants.TEST_MSE: test_mse}, open(output_path, "w+"))
+    output_path = workspace_path / constants.OUTPUT_DIR / "output_{}.json".format(job_name)
+    json.dump({constants.TRAIN_MSE: train_mse, constants.TEST_MSE: test_mse}, open(output_path, "w+"), indent=2)
 
 if __name__ == "__main__":
     main()

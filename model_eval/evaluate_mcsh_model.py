@@ -14,8 +14,12 @@ class dataset:
         self.elements = elements
         self.atom_gaussians = atom_gaussians
 
+    def empty(self):
+        return len(self.images) == 0
+
 #run k-fold cross validation with given mcsh params and return (train_mse, test_mse)
 def evaluate_model(mcsh_group_params, cutoff, data, run_dir='./'):
+    np.random.seed(1)
     mcsh_params = {   "MCSHs": mcsh_group_params,
                       "atom_gaussians": data.atom_gaussians,
                       "cutoff": cutoff
