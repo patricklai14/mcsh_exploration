@@ -7,7 +7,7 @@ import pathlib
 import pdb
 import pickle
 
-import evaluate_mcsh_model
+import model_eval
 import constants
 
 def main():
@@ -35,17 +35,12 @@ def main():
     config_file = args_dict["config"]
     config = json.load(open(config_file, "r"))
 
-    cutoff = config["cutoff"]
-    order_params = config["groups_by_order"]
-    for order, params in order_params.items():
-        params["sigmas"] = np.array(config["sigmas"])
-
     run_dir = workspace_path / "{}/{}".format(constants.TRAINING_DIR, job_name)
     run_dir.mkdir(parents=True, exist_ok=False)
 
     #get model performance
-    print("Evaluating with params: {}".format(order_params))
-    train_mse, test_mse = evaluate_mcsh_model.evaluate_model(order_params, cutoff, dataset, run_dir)
+    print("Evaluating with config: {}".format(config))
+    train_mse, test_mse = model_eval.evaluate_model(config, dataset, run_dir)
     print("Test MSE: {}".format(test_mse))
 
     #write result to file

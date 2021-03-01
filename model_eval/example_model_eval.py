@@ -7,7 +7,7 @@ import numpy as np
 from ase import Atoms
 from ase.calculators.emt import EMT
 
-import evaluate_mcsh_model
+import model_eval
 import model_eval
 
 def main():
@@ -61,7 +61,7 @@ def main():
     atom_gaussians = {"C": os.path.join(dir_prefix, "config/MCSH_potential/C_coredensity_5.g"),
                       "O": os.path.join(dir_prefix, "config/MCSH_potential/O_totaldensity_7.g"),
                       "Cu": os.path.join(dir_prefix, "config/MCSH_potential/Cu_totaldensity_5.g")}
-    data = evaluate_mcsh_model.dataset(images, elements, atom_gaussians)
+    data = model_eval.dataset(images, elements, atom_gaussians)
 
     #run model evaluation
     workspace = curr_dir / "test_workspace"
