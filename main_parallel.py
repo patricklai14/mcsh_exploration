@@ -12,7 +12,7 @@ import os
 import pdb
 import pickle
 
-import evaluate_mcsh_model
+from model_eval import model_eval
 import selection_methods
 
 def main():
@@ -57,11 +57,7 @@ def main():
     atom_gaussians = {"C": os.path.join(dir_prefix, "config/MCSH_potential/C_coredensity_5.g"),
                       "O": os.path.join(dir_prefix, "config/MCSH_potential/O_totaldensity_7.g"),
                       "Cu": os.path.join(dir_prefix, "config/MCSH_potential/Cu_totaldensity_5.g")}
-    data = evaluate_mcsh_model.dataset(images, elements, atom_gaussians)
-
-    #write dataset
-    data_file = os.path.join(dir_prefix, "data/test/test_data.p")
-    pickle.dump(data, open(data_file, "wb" ))
+    data = model_eval.dataset(elements, images, atom_gaussians=atom_gaussians)
 
     enable_parallel = args_dict["parallel"]
 

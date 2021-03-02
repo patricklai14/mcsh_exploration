@@ -222,7 +222,7 @@ def evaluate_models(dataset, config_dicts=None, config_files=None, eval_mode="cv
         pickle.dump(dataset, open(train_data_file, "wb" ))
 
         #create pace pbs files
-        pbs_files = {}
+        job_info = {} #job_name -> (config, pbs_file)
         job_names = []
         model_eval_script_dir = pathlib.Path(__file__).parent.absolute()
 
@@ -248,7 +248,7 @@ def evaluate_models(dataset, config_dicts=None, config_files=None, eval_mode="cv
             config = json.load(open(config_file, "r"))
             job_name = config[constants.CONFIG_JOB_NAME]
 
-            if job_name in pbs_files:
+            if job_name in job_files:
                 raise RuntimeError("duplicate job name: {}".format(job_name))
 
             model_eval_script = model_eval_script_dir / constants.EVAL_MODEL_SCRIPT
@@ -256,12 +256,12 @@ def evaluate_models(dataset, config_dicts=None, config_files=None, eval_mode="cv
                             model_eval_script, workspace, job_name, train_data_file, config_file)
             pbs_file = utils.create_pbs(pbs_path, job_name, command_str, time="00:10:00")
 
-            pbs_files[job_name] = pbs_file
+            job_info[job_name] = (config, pbs_file)
             job_names.append(job_name)
 
         #submit jobs on pace
-        for name, pbs_file in pbs_files.items():
-            print("Submitting job: {}".format(name))
+        for name, (config, pbs_file) in job_info.items():
+            print("Submitting job {} with config: {}".format(name, config))
             subprocess.run(["qsub", pbs_file])
 
         #collect results

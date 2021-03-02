@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import time
 
-import evaluate_mcsh_model
+from model_eval import constants, model_eval, utils
 from utils import pace_utils
 
 def forward_selection(output_dir, data):
@@ -139,18 +139,19 @@ def backward_elimination(output_dir, data, enable_parallel, parallel_workspace=N
 
     #setup baseline MCSH params
     base_order = 9 #number of orders to include by default
-    base_params = {str(i): groups_by_order[i] for i in range(base_order + 1)}
+    base_group_params = {str(i): groups_by_order[i] for i in range(base_order + 1)}
+
+    base_params = utils.get_model_eval_params("base", "mcsh", "k_fold_cv", eval_num_folds=3, eval_cv_iters=5, 
+                                              cutoff=cutoff, groups_by_order=groups_by_order, sigmas=sigmas)
 
     #get baseline performance
     print("Testing base params: {}".format(base_params))
-    #base_train_mse, base_test_mse = evaluate_mcsh_model.evaluate_model(base_params, cutoff, data)
-    base_train_mse = 1.
-    base_test_mse = 1.
+    base_train_mse, base_test_mse = model_eval.evaluate_model(base_params, data)
     print("Base test MSE: {}".format(base_test_mse))
 
-    stop_change_pct = 0.1
+    stop_change_pct = 0.15
     prev_test_mse = base_test_mse
-    prev_group_params = copy.deepcopy(base_params)
+    prev_group_params = copy.deepcopy(base_group_params)
 
     MSEs = [base_test_mse]
     orders_removed = [-1]
@@ -158,113 +159,39 @@ def backward_elimination(output_dir, data, enable_parallel, parallel_workspace=N
     print("Backward elimination params: stop_change_pct={}".format(
             stop_change_pct))
 
-    #setup necessary directories, write dataset to file if using Pace
-    if enable_parallel:
-        print("Parallel processing enabled. Initializing workspace")
-
-        workspace_subdirs = []
-        
-        config_path = pathlib.Path(parallel_workspace) / "config"
-        workspace_subdirs.append(config_path)
-
-        pbs_path = pathlib.Path(parallel_workspace) / "pbs"
-        workspace_subdirs.append(pbs_path)
-
-        temp_output_path = pathlib.Path(parallel_workspace) / "output"
-        workspace_subdirs.append(temp_output_path)
-
-        training_path = pathlib.Path(parallel_workspace) / "training"
-        workspace_subdirs.append(training_path)
-
-        for subdir in workspace_subdirs:
-            if subdir.exists() and subdir.is_dir():
-                shutil.rmtree(subdir)
-            
-            subdir.mkdir(parents=True, exist_ok=False)
-
-        #write dataset
-
     #perform backward elimination
     while True:
         curr_min_test_mse = 1000000.
         curr_best_order = -1
         curr_best_params = None
 
-        if enable_parallel:
-            candidate_orders = []
-            candidate_params = []
+        candidate_orders = []
+        candidate_params = []
+        
+        print("Creating configs for processing on Pace")
+        for order, order_params in prev_group_params.items():
+            group_params_candidate = copy.deepcopy(prev_group_params)
+            order_str = str(order)
+            del group_params_candidate[order_str]
+
+            eval_params_candidate = copy.deepcopy(base_params)
+            eval_params_candidate[constants.CONFIG_GROUPS_BY_ORDER] = group_params_candidate
             
-            print("Creating configs for processing on Pace")
-            for order, order_params in prev_group_params.items():
-                group_params_candidate = copy.deepcopy(prev_group_params)
-                order_str = str(order)
-                del group_params_candidate[order_str]
+            candidate_orders.append(order)
+            candidate_params.append(group_params_candidate)
 
-                #create model configs for each model to test
-                curr_config = {}
-                curr_config["id"] = order
-                curr_config["cutoff"] = cutoff
-                curr_config["groups_by_order"] = {str(k): {"groups": v["groups"]} for (k, v) in group_params_candidate.items()}
-                curr_config["sigmas"] = list(sigmas)
+        results = model_eval.evaluate_models(data, config_dicts=candidate_params, 
+                                             enable_parallel=enable_parallel, workspace=parallel_workspace)
 
-                curr_config_file = config_path / "config_{}.json".format(order)
-                json.dump(curr_config, open(curr_config_file, "w+"))
+        for i in range(len(candidate_orders)):
+            curr_test_mse = results[i]
+            curr_order = candidate_orders[i]
+            curr_params = candidate_params[i]
 
-                #create pace pbs files
-                model_eval_script = "/storage/home/hpaceice1/plai30/sandbox/mcsh_exploration/run_eval_test.py"
-                data_file = "/storage/home/hpaceice1/plai30/sandbox/data/test/test_data.p" #TODO: remove hardcoded dataset
-                command_str = "python {} --workspace {} --job_id {} --data {}".format(model_eval_script, parallel_workspace, order, data_file) 
-                pbs_file = pace_utils.create_pbs(pbs_path, order_str, command_str, time="00:10:00")
-
-                #submit job on pace
-                subprocess.run(["qsub", pbs_file])
-                
-                candidate_orders.append(order)
-                candidate_params.append(group_params_candidate)
-
-            #collect results
-            for i in range(len(candidate_orders)):
-                order = candidate_orders[i]
-                group_params_candidate = candidate_params[i]
-
-                curr_output_file = temp_output_path / "output_{}.json".format(order)
-                while not curr_output_file.exists():
-                    print("results for job {} not ready. Sleeping for 20s".format(order))
-                    time.sleep(20)
-
-                result_dict = json.load(open(curr_output_file, "r"))
-                test_mse = result_dict["avg_test_mse"]
-
-                if test_mse < curr_min_test_mse:
-                    curr_min_test_mse = test_mse
-                    curr_best_order = order
-                    curr_best_params = copy.deepcopy(group_params_candidate)
-
-            #clear workspace
-            for subdir in workspace_subdirs:
-                if subdir.exists() and subdir.is_dir():
-                    shutil.rmtree(subdir)
-
-                subdir.mkdir(parents=True, exist_ok=False)
-                
-        else:
-            #run locally sequentially
-            for order, order_params in prev_group_params.items():
-
-                group_params_candidate = copy.deepcopy(prev_group_params)
-                order_str = str(order)
-                del group_params_candidate[order_str]
-
-                print("Testing removing order {}".format(order))
-                print("MCSH group params: {}".format(group_params_candidate))
-                train_mse, test_mse = evaluate_mcsh_model.evaluate_model(group_params_candidate, cutoff, data)
-
-                if test_mse < curr_min_test_mse:
-                    curr_min_test_mse = test_mse
-                    curr_best_order = order
-                    curr_best_params = copy.deepcopy(group_params_candidate)
-
-
+            if curr_test_mse < curr_min_test_mse:
+                curr_min_test_mse = curr_test_mse
+                curr_best_order = curr_order
+                curr_best_params = copy.deepcopy(curr_params)
 
         max_change_pct = (curr_min_test_mse - prev_test_mse) / prev_test_mse
         print("Best change: removing order {} changed test MSE by {} pct ({} to {})".format(
@@ -273,7 +200,10 @@ def backward_elimination(output_dir, data, enable_parallel, parallel_workspace=N
 
         #check for stop criteria
         if max_change_pct < stop_change_pct:
-            prev_test_mse = curr_min_test_mse
+            
+            if max_change_pct < 0.:
+                prev_test_mse = curr_min_test_mse
+    
             prev_group_params = copy.deepcopy(curr_best_params)
 
             MSEs.append(curr_min_test_mse)

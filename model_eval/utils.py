@@ -51,12 +51,13 @@ def validate_model_eval_params(params):
 
 #return dict with model eval params with given values
 #TODO: perform validation?
-def get_model_eval_params(fp_type, eval_type, cutoff=None, sigmas=None, groups_by_order=None, bp_params=None, 
+def get_model_eval_params(name, fp_type, eval_type, cutoff=None, sigmas=None, groups_by_order=None, bp_params=None, 
                           nn_layers=None, nn_nodes=None, nn_learning_rate=None, nn_batch_size=None, nn_epochs=None,
                           eval_num_folds=None, eval_cv_iters=None, rand_seed=None):
     
     #map keys in dict to arguments
-    config_dict = {constants.CONFIG_FP_TYPE: fp_type,
+    config_dict = {constants.CONFIG_JOB_NAME: name,
+                   constants.CONFIG_FP_TYPE: fp_type,
                    constants.CONFIG_EVAL_TYPE: eval_type,
                    constants.CONFIG_CUTOFF: cutoff,
                    constants.CONFIG_SIGMAS: sigmas,
