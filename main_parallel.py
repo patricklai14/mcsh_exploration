@@ -12,7 +12,7 @@ import os
 import pdb
 import pickle
 
-import evaluate_mcsh_model
+from model_eval import model_evaluation
 import selection_methods
 
 def main():
@@ -35,7 +35,7 @@ def main():
 
     #setup dataset
     np.random.seed(3)
-    distances = np.linspace(2, 5, 100)
+    distances = np.linspace(2, 5, 500)
     images = []
     for i in range(len(distances)):
         l = distances[i]
@@ -57,11 +57,7 @@ def main():
     atom_gaussians = {"C": os.path.join(dir_prefix, "config/MCSH_potential/C_coredensity_5.g"),
                       "O": os.path.join(dir_prefix, "config/MCSH_potential/O_totaldensity_7.g"),
                       "Cu": os.path.join(dir_prefix, "config/MCSH_potential/Cu_totaldensity_5.g")}
-    data = evaluate_mcsh_model.dataset(images, elements, atom_gaussians)
-
-    #write dataset
-    data_file = os.path.join(dir_prefix, "data/test/test_data.p")
-    pickle.dump(data, open(data_file, "wb" ))
+    data = model_evaluation.dataset(elements, images, atom_gaussians=atom_gaussians)
 
     enable_parallel = args_dict["parallel"]
 
@@ -70,7 +66,7 @@ def main():
             selection_methods.forward_selection(OUTPUT_DIR, data)
 
         if args_dict['method'] == "backward":
-            selection_methods.backward_elimination(OUTPUT_DIR, data, enable_parallel, parallel_workspace)
+            selection_methods.backward_elimination(OUTPUT_DIR, data, enable_parallel, parallel_workspace, seed=5)
 
 if __name__ == "__main__":
     main()
