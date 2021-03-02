@@ -73,7 +73,8 @@ def main():
 
     #run model evaluation
     workspace = curr_dir / "test_workspace"
-    results = model_eval.evaluate_models([str(config_file_1), str(config_file_2)], data, workspace=workspace)
+    results = model_eval.evaluate_models(data, config_files=[str(config_file_1), str(config_file_2)], 
+                                         enable_parallel=True, workspace=workspace)
 
     #print results
     print("CV errors: {}".format([metrics.test_error for metrics in results]))

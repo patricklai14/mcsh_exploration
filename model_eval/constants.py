@@ -17,6 +17,7 @@ TRAIN_MSE = "avg_train_mse"
 TEST_MSE = "avg_test_mse"
 
 #config fields
+CONFIG_JOB_NAME = "name"
 CONFIG_FP_TYPE = "fingerprint_type"
 CONFIG_EVAL_TYPE = "evaluation_type"
 CONFIG_CUTOFF = "cutoff"

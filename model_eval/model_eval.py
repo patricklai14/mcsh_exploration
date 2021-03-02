@@ -24,33 +24,9 @@ class dataset:
 #model/evaluation parameters
 class evaluation_params:
     def __init__(self, config):
-        self.validate_config(config)
+        utils.validate_validate_model_eval_params(config)
         self.set_default_params()
         self.set_config_params(config)
-
-    def validate_config(self, config):
-        required_fields = [constants.CONFIG_CUTOFF, 
-                           constants.CONFIG_FP_TYPE, 
-                           constants.CONFIG_EVAL_TYPE]
-
-        for field in required_fields:
-            if field not in config:
-                raise RuntimeError("required field {} not in config".format(field))
-
-        if config[constants.CONFIG_FP_TYPE] == "mcsh":
-            if constants.CONFIG_GROUPS_BY_ORDER not in config or constants.CONFIG_SIGMAS not in config:
-                raise RuntimeError("incomplete information in config for MCSH")
-
-                #TODO: validate mcsh parameters
-
-        elif config[constants.CONFIG_FP_TYPE] == "bp":
-            if constants.BP_PARAMS not in config:
-                raise RuntimeError("bp_params required in config for BP")
-
-            #TODO: validate bp parameters
-        
-        else:
-            raise RuntimeError("invalid fingerprint type: {}".format(config[constants.CONFIG_FP_TYPE]))
 
     def set_default_params(self):
         self.params = {constants.CONFIG_NN_LAYERS: constants.DEFAULT_NN_LAYERS,
@@ -208,7 +184,7 @@ def evaluate_model(eval_config, data, run_dir='./'):
         return mse_train, mse_test
 
 #evaluate the models given in config_files and return performance metrics
-def evaluate_models(config_files, dataset, eval_mode="cv", enable_parallel=True, workspace=None):
+def evaluate_models(dataset, config_dicts=None, config_files=None, eval_mode="cv", enable_parallel=False, workspace=None):
 
     if enable_parallel:
         if not workspace:
@@ -248,9 +224,28 @@ def evaluate_models(config_files, dataset, eval_mode="cv", enable_parallel=True,
         pbs_files = {}
         job_names = []
         model_eval_script_dir = pathlib.Path(__file__).parent.absolute()
+
+        #set up config files
+        if not config_dicts:
+            if not config_files:
+                raise RuntimeError("One of config_dicts or config_files must be provided evaluate models")
+
+        else:
+            if config_files is not None:
+                raise RuntimeError("Both config_dicts and config_files provided - not supported")
+
+            job_names = set()
+            for config_dict in config_dicts:
+                job_name = config_dict[constants.CONFIG_JOB_NAME]
+                if job_name in job_names:
+                    raise RuntimeError("duplicate job name: {}".format(job_name))
+
+                config_file = config_path / "config_{}.json".format(job_name)
+                json.dump(config_file, open(config_file, "w+"), indent=2)
+
         for config_file in config_files:
             config = json.load(open(config_file, "r"))
-            job_name = config["name"]
+            job_name = config[constants.CONFIG_JOB_NAME]
 
             if job_name in pbs_files:
                 raise RuntimeError("duplicate job name: {}".format(job_name))
@@ -286,5 +281,29 @@ def evaluate_models(config_files, dataset, eval_mode="cv", enable_parallel=True,
         #clear workspace
         if workspace_path.exists() and workspace_path.is_dir():
             shutil.rmtree(workspace_path) 
+
+        return results
+
+    else:
+        #run sequentially
+
+        #get config dicts if needed
+        if not config_dicts:
+            if not config_files:
+                raise RuntimeError("One of config_dicts or config_files must be provided evaluate models")
+
+            config_dicts = [json.load(open(config_file, "r")) for config_file in config_files]
+        else:
+            if config_files is not None:
+                raise RuntimeError("Both config_dicts and config_files provided - not supported")
+
+        results = []
+        for config in config_dicts:
+            #get model performance
+            print("Evaluating with config: {}".format(config))
+            train_mse, test_mse = model_eval.evaluate_model(config, dataset)
+            print("Test MSE: {}".format(test_mse))
+
+            results.append(model_metrics(train_mse, test_mse))
 
         return results
