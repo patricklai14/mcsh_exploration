@@ -1,5 +1,9 @@
 {
-  "name": "test_job_2",
+  "name": "test_job_1",
+  "fingerprint_type": "mcsh",
+  "evaluation_type": "k_fold_cv",
+  "num_folds": 2,
+  "cv_iters": 2,
   "cutoff": 8,
   "groups_by_order": {
     "0": {
@@ -10,12 +14,6 @@
     "1": {
       "groups": [
         1
-      ]
-    },
-    "2": {
-      "groups": [
-        1,
-        2
       ]
     }
   },

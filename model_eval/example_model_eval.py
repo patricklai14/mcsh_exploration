@@ -14,6 +14,10 @@ def main():
     #create config files
     sigmas = [0.049999999999999996, 0.1057371263440564, 0.22360679774997896, 0.4728708045015879, 1.0]
     config_1 = {"name": "test_job_1",
+                "fingerprint_type": "mcsh",
+                "evaluation_type": "k_fold_cv",
+                "num_folds": 2,
+                "cv_iters": 2,
                 "cutoff": 8,
                 "groups_by_order": {
                     "0": {"groups": [1]},
@@ -21,6 +25,10 @@ def main():
                 "sigmas": sigmas}
 
     config_2 = {"name": "test_job_2",
+                "fingerprint_type": "mcsh",
+                "evaluation_type": "k_fold_cv",
+                "num_folds": 2,
+                "cv_iterse": 2,
                 "cutoff": 8,
                 "groups_by_order": {
                     "0": {"groups": [1]},
@@ -61,7 +69,7 @@ def main():
     atom_gaussians = {"C": os.path.join(dir_prefix, "config/MCSH_potential/C_coredensity_5.g"),
                       "O": os.path.join(dir_prefix, "config/MCSH_potential/O_totaldensity_7.g"),
                       "Cu": os.path.join(dir_prefix, "config/MCSH_potential/Cu_totaldensity_5.g")}
-    data = model_eval.dataset(images, elements, atom_gaussians)
+    data = model_eval.dataset(elements, images, atom_gaussians=atom_gaussians)
 
     #run model evaluation
     workspace = curr_dir / "test_workspace"

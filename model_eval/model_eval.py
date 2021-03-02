@@ -1,9 +1,14 @@
 import json
 import pathlib
+import pdb
 import pickle
 import shutil
 import subprocess
 import time
+
+import numpy as np
+
+from amptorch.trainer import AtomsTrainer
 
 import constants
 import utils
@@ -75,7 +80,7 @@ class model_metrics:
         self.test_error = test_error
 
 #evaluate model with a single train/test split
-def evaluate_model_one_split(eval_params, data):
+def evaluate_model_one_split(eval_params, data, run_dir):
     if eval_params.params[constants.CONFIG_FP_TYPE] == "mcsh":
         fp_scheme = "mcsh"
         fp_params = {"MCSHs": eval_params.params[constants.PARAM_MCSH_GROUP_PARAMS],
@@ -99,11 +104,11 @@ def evaluate_model_one_split(eval_params, data):
             "epochs": eval_params.params[constants.CONFIG_NN_EPOCHS],
         },
         "dataset": {
-            "raw_data": images_train,
+            "raw_data": data.train_images,
             "val_split": 0,
             "elements": data.elements,
-            "fp_scheme": "mcsh",
-            "fp_params": mcsh_params,
+            "fp_scheme": fp_scheme,
+            "fp_params": fp_params,
             "save_fps": False,
         },
         "cmd": {
@@ -121,14 +126,14 @@ def evaluate_model_one_split(eval_params, data):
 
     #test MSE
     predictions = trainer.predict(data.test_images)
-    true_energies_test = np.array([image.get_potential_energy() for image in images])
+    true_energies_test = np.array([image.get_potential_energy() for image in data.test_images])
     pred_energies = np.array(predictions["energy"])
     curr_mse_test = np.mean((true_energies_test - pred_energies) ** 2)
     print("Test MSE:", curr_mse_test)
 
     #train MSE
     predictions = trainer.predict(data.train_images)
-    true_energies_train = np.array([image.get_potential_energy() for image in images])
+    true_energies_train = np.array([image.get_potential_energy() for image in data.train_images])
     pred_energies = np.array(predictions["energy"])
     curr_mse_train = np.mean((true_energies_train - pred_energies) ** 2)
     print("Train MSE:", curr_mse_train)
@@ -140,7 +145,7 @@ def evaluate_model(eval_config, data, run_dir='./'):
     eval_params = evaluation_params(eval_config)
     np.random.seed(eval_params.params[constants.CONFIG_RAND_SEED])
 
-    if eval_config.params[constants.CONFIG_EVAL_TYPE] == "k_fold_cv":
+    if eval_params.params[constants.CONFIG_EVAL_TYPE] == "k_fold_cv":
 
         #setup for k-fold cross validation
         num_folds = eval_params.params[constants.CONFIG_EVAL_NUM_FOLDS]
@@ -183,7 +188,7 @@ def evaluate_model(eval_config, data, run_dir='./'):
                 images_test = data.train_images[start_index:end_index]
 
                 curr_data = dataset(data.elements, images_train, images_test, data.atom_gaussians)
-                curr_mse_train, curr_mse_test = evaluate_model_one_split(eval_params, curr_data)
+                curr_mse_train, curr_mse_test = evaluate_model_one_split(eval_params, curr_data, run_dir)
                 
                 mse_test_list.append(curr_mse_test)
                 mse_train_list.append(curr_mse_train)
@@ -237,7 +242,7 @@ def evaluate_models(config_files, dataset, eval_mode="cv", enable_parallel=True,
 
         #write data to disk
         train_data_file = data_path / constants.TRAIN_DATA_FILE
-        pickle.dump(train_dataset, open(train_data_file, "wb" ))
+        pickle.dump(dataset, open(train_data_file, "wb" ))
 
         #create pace pbs files
         pbs_files = {}
