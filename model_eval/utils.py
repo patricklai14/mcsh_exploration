@@ -1,5 +1,7 @@
 import pathlib
 
+import constants
+
 #mem is in terms of GB
 def create_pbs(location, job_name, command, mem=2, time="00:30:00"):
     pbs_filename = pathlib.Path(location) / "{}.pbs".format(job_name)

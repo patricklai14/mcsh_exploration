@@ -28,7 +28,7 @@ def main():
                 "fingerprint_type": "mcsh",
                 "evaluation_type": "k_fold_cv",
                 "num_folds": 2,
-                "cv_iterse": 2,
+                "cv_iters": 2,
                 "cutoff": 8,
                 "groups_by_order": {
                     "0": {"groups": [1]},

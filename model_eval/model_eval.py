@@ -1,3 +1,4 @@
+import copy
 import json
 import pathlib
 import pdb
@@ -24,7 +25,7 @@ class dataset:
 #model/evaluation parameters
 class evaluation_params:
     def __init__(self, config):
-        utils.validate_validate_model_eval_params(config)
+        utils.validate_model_eval_params(config)
         self.set_default_params()
         self.set_config_params(config)
 
@@ -301,7 +302,7 @@ def evaluate_models(dataset, config_dicts=None, config_files=None, eval_mode="cv
         for config in config_dicts:
             #get model performance
             print("Evaluating with config: {}".format(config))
-            train_mse, test_mse = model_eval.evaluate_model(config, dataset)
+            train_mse, test_mse = evaluate_model(config, copy.deepcopy(dataset))
             print("Test MSE: {}".format(test_mse))
 
             results.append(model_metrics(train_mse, test_mse))
