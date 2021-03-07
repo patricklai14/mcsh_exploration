@@ -74,12 +74,12 @@ def get_model_eval_params(name, fp_type, eval_type, cutoff=None, sigmas=None, gr
 
     #remove unset entries
     to_remove = []
-    for key, value in keys_to_args.items():
+    for key, value in config_dict.items():
         if value is None:
             to_remove.append(key)
 
     for key in to_remove:
-        del keys_to_args[key]
+        del config_dict[key]
 
     validate_model_eval_params(config_dict)
 

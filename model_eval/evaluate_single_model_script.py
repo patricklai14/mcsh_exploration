@@ -7,7 +7,7 @@ import pathlib
 import pdb
 import pickle
 
-import model_eval
+import model_evaluation
 import constants
 
 def main():
@@ -40,7 +40,7 @@ def main():
 
     #get model performance
     print("Evaluating with config: {}".format(config))
-    train_mse, test_mse = model_eval.evaluate_model(config, dataset, run_dir)
+    train_mse, test_mse = model_evaluation.evaluate_model(config, dataset, run_dir)
     print("Test MSE: {}".format(test_mse))
 
     #write result to file

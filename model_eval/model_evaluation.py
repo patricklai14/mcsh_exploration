@@ -42,7 +42,7 @@ class evaluation_params:
     def set_config_params(self, config):
         for key, value in config.items():
             if key == constants.CONFIG_GROUPS_BY_ORDER:
-                mcsh_group_params = value
+                mcsh_group_params = copy.deepcopy(value)
                 for order, group_params in mcsh_group_params.items():
                     group_params[constants.CONFIG_SIGMAS] = np.array(config[constants.CONFIG_SIGMAS])
 
@@ -221,11 +221,6 @@ def evaluate_models(dataset, config_dicts=None, config_files=None, eval_mode="cv
         train_data_file = data_path / constants.TRAIN_DATA_FILE
         pickle.dump(dataset, open(train_data_file, "wb" ))
 
-        #create pace pbs files
-        job_info = {} #job_name -> (config, pbs_file)
-        job_names = []
-        model_eval_script_dir = pathlib.Path(__file__).parent.absolute()
-
         #set up config files
         if not config_dicts:
             if not config_files:
@@ -235,6 +230,7 @@ def evaluate_models(dataset, config_dicts=None, config_files=None, eval_mode="cv
             if config_files is not None:
                 raise RuntimeError("Both config_dicts and config_files provided - not supported")
 
+            config_files = []
             job_names = set()
             for config_dict in config_dicts:
                 job_name = config_dict[constants.CONFIG_JOB_NAME]
@@ -242,19 +238,25 @@ def evaluate_models(dataset, config_dicts=None, config_files=None, eval_mode="cv
                     raise RuntimeError("duplicate job name: {}".format(job_name))
 
                 config_file = config_path / "config_{}.json".format(job_name)
-                json.dump(config_file, open(config_file, "w+"), indent=2)
+                json.dump(config_dict, open(config_file, "w+"), indent=2)
+                config_files.append(config_file)
+
+        #create pace pbs files
+        job_info = {} #job_name -> (config, pbs_file)
+        job_names = []
+        model_eval_script_dir = pathlib.Path(__file__).parent.absolute()
 
         for config_file in config_files:
             config = json.load(open(config_file, "r"))
             job_name = config[constants.CONFIG_JOB_NAME]
 
-            if job_name in job_files:
+            if job_name in job_info:
                 raise RuntimeError("duplicate job name: {}".format(job_name))
 
             model_eval_script = model_eval_script_dir / constants.EVAL_MODEL_SCRIPT
             command_str = "python {} --workspace {} --job_name {} --data {} --config {}".format(
                             model_eval_script, workspace, job_name, train_data_file, config_file)
-            pbs_file = utils.create_pbs(pbs_path, job_name, command_str, time="00:10:00")
+            pbs_file = utils.create_pbs(pbs_path, job_name, command_str, time="00:30:00")
 
             job_info[job_name] = (config, pbs_file)
             job_names.append(job_name)

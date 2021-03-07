@@ -10,8 +10,7 @@ import shutil
 import subprocess
 import time
 
-from model_eval import constants, model_eval, utils
-from utils import pace_utils
+from model_eval import constants, model_evaluation, utils
 
 def forward_selection(output_dir, data):
     cutoff = 8
@@ -125,28 +124,28 @@ def forward_selection(output_dir, data):
 
 def backward_elimination(output_dir, data, enable_parallel, parallel_workspace=None):
     cutoff = 8
-    sigmas = np.logspace(np.log10(0.05), np.log10(1.0), num=5)
-    groups_by_order = {0: {"groups": [1], "sigmas": sigmas},
-                       1: {"groups": [1], "sigmas": sigmas},
-                       2: {"groups": [1,2], "sigmas": sigmas},
-                       3: {"groups": [1,2,3], "sigmas": sigmas},
-                       4: {"groups": [1,2,3,4], "sigmas": sigmas},
-                       5: {"groups": [1,2,3,4,5], "sigmas": sigmas},
-                       6: {"groups": [1,2,3,4,5,6,7], "sigmas": sigmas},
-                       7: {"groups": [1,2,3,4,5,6,7,8], "sigmas": sigmas},
-                       8: {"groups": [1,2,3,4,5,6,7,8,9,10], "sigmas": sigmas},
-                       9: {"groups": [1,2,3,4,5,6,7,8,9,10,11,12], "sigmas": sigmas}}
+    sigmas = (np.logspace(np.log10(0.05), np.log10(1.0), num=5)).tolist()
+    groups_by_order = {0: {"groups": [1]},
+                       1: {"groups": [1]},
+                       2: {"groups": [1,2]},
+                       3: {"groups": [1,2,3]},
+                       4: {"groups": [1,2,3,4]},
+                       5: {"groups": [1,2,3,4,5]},
+                       6: {"groups": [1,2,3,4,5,6,7]},
+                       7: {"groups": [1,2,3,4,5,6,7,8]},
+                       8: {"groups": [1,2,3,4,5,6,7,8,9,10]},
+                       9: {"groups": [1,2,3,4,5,6,7,8,9,10,11,12]}}
 
     #setup baseline MCSH params
     base_order = 9 #number of orders to include by default
     base_group_params = {str(i): groups_by_order[i] for i in range(base_order + 1)}
 
-    base_params = utils.get_model_eval_params("base", "mcsh", "k_fold_cv", eval_num_folds=3, eval_cv_iters=5, 
-                                              cutoff=cutoff, groups_by_order=groups_by_order, sigmas=sigmas)
+    base_params = utils.get_model_eval_params("base", "mcsh", "k_fold_cv", eval_num_folds=2, eval_cv_iters=1, 
+                                              cutoff=cutoff, groups_by_order=base_group_params, sigmas=sigmas)
 
     #get baseline performance
     print("Testing base params: {}".format(base_params))
-    base_train_mse, base_test_mse = model_eval.evaluate_model(base_params, data)
+    base_train_mse, base_test_mse = model_evaluation.evaluate_model(base_params, data)
     print("Base test MSE: {}".format(base_test_mse))
 
     stop_change_pct = 0.15
@@ -175,13 +174,14 @@ def backward_elimination(output_dir, data, enable_parallel, parallel_workspace=N
             del group_params_candidate[order_str]
 
             eval_params_candidate = copy.deepcopy(base_params)
+            eval_params_candidate[constants.CONFIG_JOB_NAME] = str(order)
             eval_params_candidate[constants.CONFIG_GROUPS_BY_ORDER] = group_params_candidate
             
             candidate_orders.append(order)
-            candidate_params.append(group_params_candidate)
+            candidate_params.append(eval_params_candidate)
 
-        results = model_eval.evaluate_models(data, config_dicts=candidate_params, 
-                                             enable_parallel=enable_parallel, workspace=parallel_workspace)
+        results = model_evaluation.evaluate_models(data, config_dicts=candidate_params, 
+                                                   enable_parallel=enable_parallel, workspace=parallel_workspace)
 
         for i in range(len(candidate_orders)):
             curr_test_mse = results[i]
