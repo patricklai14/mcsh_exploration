@@ -35,7 +35,7 @@ def main():
 
     #setup dataset
     np.random.seed(3)
-    distances = np.linspace(2, 5, 100)
+    distances = np.linspace(2, 5, 500)
     images = []
     for i in range(len(distances)):
         l = distances[i]
@@ -66,7 +66,7 @@ def main():
             selection_methods.forward_selection(OUTPUT_DIR, data)
 
         if args_dict['method'] == "backward":
-            selection_methods.backward_elimination(OUTPUT_DIR, data, enable_parallel, parallel_workspace)
+            selection_methods.backward_elimination(OUTPUT_DIR, data, enable_parallel, parallel_workspace, seed=5)
 
 if __name__ == "__main__":
     main()

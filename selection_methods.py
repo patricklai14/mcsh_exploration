@@ -122,7 +122,7 @@ def forward_selection(output_dir, data):
             break
 
 
-def backward_elimination(output_dir, data, enable_parallel, parallel_workspace=None):
+def backward_elimination(output_dir, data, enable_parallel, parallel_workspace=None, seed=None):
     cutoff = 8
     sigmas = (np.logspace(np.log10(0.05), np.log10(1.0), num=5)).tolist()
     groups_by_order = {0: {"groups": [1]},
@@ -140,8 +140,8 @@ def backward_elimination(output_dir, data, enable_parallel, parallel_workspace=N
     base_order = 9 #number of orders to include by default
     base_group_params = {str(i): groups_by_order[i] for i in range(base_order + 1)}
 
-    base_params = utils.get_model_eval_params("base", "mcsh", "k_fold_cv", eval_num_folds=2, eval_cv_iters=1, 
-                                              cutoff=cutoff, groups_by_order=base_group_params, sigmas=sigmas)
+    base_params = model_evaluation.get_model_eval_params("base", "mcsh", "k_fold_cv", eval_num_folds=5, eval_cv_iters=3, 
+                                                         cutoff=cutoff, mcsh_groups=base_group_params, sigmas=sigmas, seed=seed)
 
     #get baseline performance
     print("Testing base params: {}".format(base_params))
@@ -162,7 +162,7 @@ def backward_elimination(output_dir, data, enable_parallel, parallel_workspace=N
     while True:
         curr_min_test_mse = 1000000.
         curr_best_order = -1
-        curr_best_params = None
+        curr_best_group_params = None
 
         candidate_orders = []
         candidate_params = []
@@ -175,28 +175,29 @@ def backward_elimination(output_dir, data, enable_parallel, parallel_workspace=N
 
             eval_params_candidate = copy.deepcopy(base_params)
             eval_params_candidate[constants.CONFIG_JOB_NAME] = str(order)
-            eval_params_candidate[constants.CONFIG_GROUPS_BY_ORDER] = group_params_candidate
+            eval_params_candidate[constants.CONFIG_MCSH_GROUPS] = group_params_candidate
             
             candidate_orders.append(order)
             candidate_params.append(eval_params_candidate)
 
         results = model_evaluation.evaluate_models(data, config_dicts=candidate_params, 
-                                                   enable_parallel=enable_parallel, workspace=parallel_workspace)
+                                                   enable_parallel=enable_parallel, workspace=parallel_workspace,
+                                                   time_limit="00:40:00", mem_limit=2, conda_env="amptorch")
 
         for i in range(len(candidate_orders)):
-            curr_test_mse = results[i]
+            curr_test_mse = results[i].test_error
             curr_order = candidate_orders[i]
             curr_params = candidate_params[i]
 
             if curr_test_mse < curr_min_test_mse:
                 curr_min_test_mse = curr_test_mse
                 curr_best_order = curr_order
-                curr_best_params = copy.deepcopy(curr_params)
+                curr_best_group_params = copy.deepcopy(curr_params[constants.CONFIG_MCSH_GROUPS])
 
         max_change_pct = (curr_min_test_mse - prev_test_mse) / prev_test_mse
         print("Best change: removing order {} changed test MSE by {} pct ({} to {})".format(
             curr_best_order, max_change_pct, prev_test_mse, curr_min_test_mse))
-        print("Params for best change: {}".format(curr_best_params))
+        print("Params for best change: {}".format(curr_best_group_params))
 
         #check for stop criteria
         if max_change_pct < stop_change_pct:
@@ -204,7 +205,7 @@ def backward_elimination(output_dir, data, enable_parallel, parallel_workspace=N
             if max_change_pct < 0.:
                 prev_test_mse = curr_min_test_mse
     
-            prev_group_params = copy.deepcopy(curr_best_params)
+            prev_group_params = copy.deepcopy(curr_best_group_params)
 
             MSEs.append(curr_min_test_mse)
             orders_removed.append(curr_best_order)
